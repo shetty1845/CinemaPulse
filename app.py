@@ -16,7 +16,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 
 # ============================================================================
-# AWS DYNAMODB & SNS INITIALIZATION WITH FALLBACK
+# AWS DYNAMODB & SNS - REQUIRED (No fallback)
 # ============================================================================
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 MOVIES_TABLE = os.getenv('MOVIES_TABLE', 'CinemaPulse-Movies')
@@ -24,35 +24,14 @@ USERS_TABLE = os.getenv('USERS_TABLE', 'CinemaPulse-Users')
 REVIEWS_TABLE = os.getenv('REVIEWS_TABLE', 'CinemaPulse-Reviews')
 SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')
 
-# Global AWS clients with error handling
-dynamodb = None
-sns_client = None
-USE_DYNAMODB = False
+# Initialize AWS clients - REQUIRED
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+sns_client = boto3.client('sns', region_name=AWS_REGION)
 
-try:
-    dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
-    sns_client = boto3.client('sns', region_name=AWS_REGION)
-    
-    # Test connection
-    dynamodb.meta.client.list_tables()
-    USE_DYNAMODB = True
-    print("✅ AWS DynamoDB connection established (IAM Role/Local credentials)")
-    
-except (ClientError, NoCredentialsError) as e:
-    print(f"⚠️  AWS credentials not available: {e}")
-    print("🔄 Falling back to LOCAL STORAGE MODE")
-    USE_DYNAMODB = False
-
-except Exception as e:
-    print(f"❌ AWS connection failed: {e}")
-    USE_DYNAMODB = False
-
-# Local fallback storage
-DATA_DIR = 'data'
-os.makedirs(DATA_DIR, exist_ok=True)
-USERS_FILE = os.path.join(DATA_DIR, 'users.json')
-REVIEWS_FILE = os.path.join(DATA_DIR, 'reviews.json')
-MOVIES_FILE = os.path.join(DATA_DIR, 'movies.json')
+# Table references
+MOVIES_TABLE_OBJ = dynamodb.Table(MOVIES_TABLE)
+USERS_TABLE_OBJ = dynamodb.Table(USERS_TABLE)
+REVIEWS_TABLE_OBJ = dynamodb.Table(REVIEWS_TABLE)
 
 # Initial Movies Data (Preserved exactly)
 MOVIES_INITIAL_DATA = [
@@ -70,68 +49,31 @@ MOVIES_INITIAL_DATA = [
 def inject_now():
     return {'now': datetime.now()}
 
+# Initialize movies in DynamoDB on startup
+def initialize_movies():
+    try:
+        for movie in MOVIES_INITIAL_DATA:
+            MOVIES_TABLE_OBJ.put_item(Item=movie)
+        print("✅ Initial movies loaded to DynamoDB!")
+    except Exception as e:
+        print(f"⚠️ Movies already exist or init failed: {e}")
+
+initialize_movies()
+
 print("\n" + "="*80)
-if USE_DYNAMODB:
-    print("🎬 CinemaPulse - AWS DynamoDB + SNS Production Version")
-    print("✅ Using DynamoDB tables + SNS notifications")
-    print("✅ EC2 IAM Role authentication")
-else:
-    print("🎬 CinemaPulse - LOCAL STORAGE MODE (AWS fallback)")
-    print("⚠️  No AWS credentials detected - using local JSON files")
+print("🎬 CinemaPulse - DYNAMODB ONLY PRODUCTION VERSION")
+print("✅ Using ONLY DynamoDB tables + SNS notifications")
+print("✅ EC2 IAM Role authentication REQUIRED")
+print(f"✅ Tables: {MOVIES_TABLE}, {USERS_TABLE}, {REVIEWS_TABLE}")
+print(f"✅ SNS: {SNS_TOPIC_ARN}")
 print("="*80 + "\n")
 
 # ============================================================================
-# LOCAL JSON FALLBACK FUNCTIONS
+# SNS NOTIFICATION
 # ============================================================================
-def load_json_file(filepath, default_data=None):
-    try:
-        if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        else:
-            if default_data is not None:
-                save_json_file(filepath, default_data)
-                return default_data
-            return []
-    except Exception as e:
-        print(f"⚠️  Error loading {filepath}: {e}")
-        return default_data or []
-
-def save_json_file(filepath, data):
-    try:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, default=str, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"❌ Error saving {filepath}: {e}")
-        return False
-
-def initialize_local_storage():
-    if not USE_DYNAMODB:
-        load_json_file(MOVIES_FILE, MOVIES_INITIAL_DATA)
-        load_json_file(USERS_FILE, [])
-        load_json_file(REVIEWS_FILE, [])
-        print("✅ Local storage initialized!")
-
-initialize_local_storage()
-
-# ============================================================================
-# DYNAMODB HELPER FUNCTIONS (Safe with fallback)
-# ============================================================================
-def safe_dynamodb_operation(operation, fallback=None):
-    """Execute DynamoDB operation with local fallback"""
-    if USE_DYNAMODB:
-        try:
-            return operation()
-        except Exception as e:
-            print(f"⚠️  DynamoDB failed, falling back to local: {e}")
-            USE_DYNAMODB = False
-    return fallback() if fallback else []
-
 def send_sns_notification(message):
     """Send SNS notification safely"""
-    if USE_DYNAMODB and SNS_TOPIC_ARN and sns_client:
+    if SNS_TOPIC_ARN and sns_client:
         try:
             sns_client.publish(
                 TopicArn=SNS_TOPIC_ARN,
@@ -140,7 +82,7 @@ def send_sns_notification(message):
             )
             print(f"📧 SNS notification sent: {message.get('movie_id', 'N/A')}")
         except Exception as e:
-            print(f"⚠️  SNS failed: {e}")
+            print(f"⚠️ SNS failed: {e}")
 
 # ============================================================================
 # VALIDATION FUNCTIONS (Unchanged)
@@ -156,16 +98,16 @@ def verify_password(stored_hash, password):
     return check_password_hash(stored_hash, password)
 
 # ============================================================================
-# USER MANAGEMENT (DynamoDB + Local Fallback)
+# USER MANAGEMENT - DYNAMODB ONLY
 # ============================================================================
 def register_user(email, password, name):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(USERS_TABLE).scan()
-            users = response['Items']
-        else:
-            users = load_json_file(USERS_FILE)
-        
+        # Check if user exists
+        response = USERS_TABLE_OBJ.scan(FilterExpression='email = :email', 
+                                      ExpressionAttributeValues={':email': email.strip().lower()})
+        if response['Count'] > 0:
+            return False, "User already exists"
+
         if not is_valid_email(email):
             return False, "Invalid email format"
         if len(password) < 6:
@@ -175,10 +117,6 @@ def register_user(email, password, name):
         
         email = email.strip().lower()
         name = name.strip()
-        
-        if any(user['email'] == email for user in users):
-            return False, "User already exists"
-        
         password_hash = hash_password(password)
         timestamp = datetime.now().isoformat()
         new_user = {
@@ -187,14 +125,9 @@ def register_user(email, password, name):
             'last_review_date': '', 'is_active': True
         }
         
-        if USE_DYNAMODB:
-            dynamodb.Table(USERS_TABLE).put_item(Item=new_user)
-        else:
-            users.append(new_user)
-            save_json_file(USERS_FILE, users)
-        
+        USERS_TABLE_OBJ.put_item(Item=new_user)
         send_sns_notification({'event': 'user_registered', 'email': email, 'name': name})
-        print(f"✅ New user registered: {email}")
+        print(f"✅ New user registered in DynamoDB: {email}")
         return True, "Registration successful"
         
     except Exception as e:
@@ -203,17 +136,14 @@ def register_user(email, password, name):
 
 def login_user(email, password):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(USERS_TABLE).scan()
-            users = response['Items']
-        else:
-            users = load_json_file(USERS_FILE)
+        response = USERS_TABLE_OBJ.scan(FilterExpression='email = :email', 
+                                      ExpressionAttributeValues={':email': email.strip().lower()})
+        users = response['Items']
         
-        email = email.strip().lower()
         for user in users:
-            if user['email'] == email and verify_password(user['password_hash'], password):
+            if verify_password(user['password_hash'], password):
                 if user.get('is_active', True):
-                    print(f"✅ User logged in: {email}")
+                    print(f"✅ User logged in from DynamoDB: {email}")
                     return True, user
         return False, "Invalid email or password"
         
@@ -223,51 +153,30 @@ def login_user(email, password):
 
 def get_user(email):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(USERS_TABLE).get_item(Key={'email': email.strip().lower()})
-            return response.get('Item')
-        else:
-            users = load_json_file(USERS_FILE)
-            for user in users:
-                if user['email'] == email.strip().lower():
-                    return user
-            return None
-    except:
-        users = load_json_file(USERS_FILE)
-        for user in users:
-            if user['email'] == email.strip().lower():
-                return user
+        response = USERS_TABLE_OBJ.get_item(Key={'email': email.strip().lower()})
+        return response.get('Item')
+    except Exception as e:
+        print(f"❌ Get user error: {e}")
         return None
 
 # ============================================================================
-# MOVIE MANAGEMENT (DynamoDB + Local Fallback)
+# MOVIE MANAGEMENT - DYNAMODB ONLY
 # ============================================================================
 def get_all_movies():
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(MOVIES_TABLE).scan(FilterExpression='active = :val', 
-                                                       ExpressionAttributeValues={':val': True})
-            return response['Items']
-        else:
-            return load_json_file(MOVIES_FILE, MOVIES_INITIAL_DATA)
-    except:
-        return MOVIES_INITIAL_DATA
+        response = MOVIES_TABLE_OBJ.scan(FilterExpression='active = :val', 
+                                       ExpressionAttributeValues={':val': True})
+        return response['Items']
+    except Exception as e:
+        print(f"❌ Get movies error: {e}")
+        return []
 
 def get_movie_by_id(movie_id):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(MOVIES_TABLE).get_item(Key={'movie_id': str(movie_id)})
-            return response.get('Item')
-        else:
-            movies = load_json_file(MOVIES_FILE)
-            for movie in movies:
-                if movie['movie_id'] == str(movie_id):
-                    return movie
-            return None
-    except:
-        for movie in MOVIES_INITIAL_DATA:
-            if movie['movie_id'] == str(movie_id):
-                return movie
+        response = MOVIES_TABLE_OBJ.get_item(Key={'movie_id': str(movie_id)})
+        return response.get('Item')
+    except Exception as e:
+        print(f"❌ Get movie error: {e}")
         return None
 
 def update_movie_stats(movie_id):
@@ -276,30 +185,20 @@ def update_movie_stats(movie_id):
         total_reviews = len(reviews)
         avg_rating = sum(r['rating'] for r in reviews) / total_reviews if total_reviews > 0 else 0.0
         
-        if USE_DYNAMODB:
-            dynamodb.Table(MOVIES_TABLE).update_item(
-                Key={'movie_id': movie_id},
-                UpdateExpression="SET total_reviews = :tr, avg_rating = :ar, last_updated = :lu",
-                ExpressionAttributeValues={
-                    ':tr': total_reviews, ':ar': round(avg_rating, 2), ':lu': datetime.now().isoformat()
-                }
-            )
-        else:
-            movies = load_json_file(MOVIES_FILE)
-            for movie in movies:
-                if movie['movie_id'] == movie_id:
-                    movie['total_reviews'] = total_reviews
-                    movie['avg_rating'] = round(avg_rating, 2)
-                    movie['last_updated'] = datetime.now().isoformat()
-                    break
-            save_json_file(MOVIES_FILE, movies)
+        MOVIES_TABLE_OBJ.update_item(
+            Key={'movie_id': movie_id},
+            UpdateExpression="SET total_reviews = :tr, avg_rating = :ar, last_updated = :lu",
+            ExpressionAttributeValues={
+                ':tr': total_reviews, ':ar': round(avg_rating, 2), ':lu': datetime.now().isoformat()
+            }
+        )
         return True
     except Exception as e:
         print(f"❌ Error updating movie stats: {e}")
         return False
 
 # ============================================================================
-# REVIEW MANAGEMENT (Unified)
+# REVIEW MANAGEMENT - DYNAMODB ONLY
 # ============================================================================
 def submit_review(name, email, movie_id, rating, feedback_text):
     try:
@@ -311,13 +210,7 @@ def submit_review(name, email, movie_id, rating, feedback_text):
             'created_at': timestamp, 'display_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
-        if USE_DYNAMODB:
-            dynamodb.Table(REVIEWS_TABLE).put_item(Item=new_review)
-        else:
-            reviews = load_json_file(REVIEWS_FILE, [])
-            reviews.append(new_review)
-            save_json_file(REVIEWS_FILE, reviews)
-        
+        REVIEWS_TABLE_OBJ.put_item(Item=new_review)
         update_movie_stats(movie_id)
         update_user_stats(email)
         
@@ -328,6 +221,7 @@ def submit_review(name, email, movie_id, rating, feedback_text):
         }
         send_sns_notification(notification)
         
+        print(f"✅ Review saved to DynamoDB: {review_id}")
         return True
     except Exception as e:
         print(f"❌ Error submitting review: {e}")
@@ -335,27 +229,20 @@ def submit_review(name, email, movie_id, rating, feedback_text):
 
 def get_movie_reviews(movie_id, limit=50):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(REVIEWS_TABLE).scan()
-            reviews = [r for r in response['Items'] if r['movie_id'] == movie_id]
-        else:
-            reviews = load_json_file(REVIEWS_FILE)
-            reviews = [r for r in reviews if r['movie_id'] == movie_id]
-        
+        response = REVIEWS_TABLE_OBJ.scan(FilterExpression='movie_id = :mid', 
+                                        ExpressionAttributeValues={':mid': movie_id})
+        reviews = response['Items']
         reviews.sort(key=lambda x: x['created_at'], reverse=True)
         return reviews[:limit]
-    except:
-        return load_json_file(REVIEWS_FILE, [])
+    except Exception as e:
+        print(f"❌ Get movie reviews error: {e}")
+        return []
 
 def get_user_reviews(email):
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(REVIEWS_TABLE).scan()
-            reviews = [r for r in response['Items'] if r['user_email'] == email]
-        else:
-            reviews = load_json_file(REVIEWS_FILE, [])
-            reviews = [r for r in reviews if r['user_email'] == email]
-        
+        response = REVIEWS_TABLE_OBJ.scan(FilterExpression='user_email = :email', 
+                                        ExpressionAttributeValues={':email': email})
+        reviews = response['Items']
         reviews.sort(key=lambda x: x['created_at'], reverse=True)
         
         movies = get_all_movies()
@@ -368,7 +255,8 @@ def get_user_reviews(email):
                     review['release_year'] = movie.get('release_year', 2025)
                     break
         return reviews
-    except:
+    except Exception as e:
+        print(f"❌ Get user reviews error: {e}")
         return []
 
 def update_user_stats(email):
@@ -383,30 +271,20 @@ def update_user_stats(email):
             avg_rating = 0.0
             last_review = ''
         
-        if USE_DYNAMODB:
-            dynamodb.Table(USERS_TABLE).update_item(
-                Key={'email': email},
-                UpdateExpression="SET total_reviews = :tr, avg_rating = :ar, last_review_date = :lr",
-                ExpressionAttributeValues={
-                    ':tr': total_reviews, ':ar': round(avg_rating, 2), ':lr': last_review
-                }
-            )
-        else:
-            users = load_json_file(USERS_FILE)
-            for user in users:
-                if user['email'] == email:
-                    user['total_reviews'] = total_reviews
-                    user['avg_rating'] = round(avg_rating, 2)
-                    user['last_review_date'] = last_review
-                    break
-            save_json_file(USERS_FILE, users)
+        USERS_TABLE_OBJ.update_item(
+            Key={'email': email},
+            UpdateExpression="SET total_reviews = :tr, avg_rating = :ar, last_review_date = :lr",
+            ExpressionAttributeValues={
+                ':tr': total_reviews, ':ar': round(avg_rating, 2), ':lr': last_review
+            }
+        )
         return True
     except Exception as e:
         print(f"❌ Error updating user stats: {e}")
         return False
 
 # ============================================================================
-# RECOMMENDATIONS, ANALYTICS (Unified - works with both storage types)
+# RECOMMENDATIONS, ANALYTICS - DYNAMODB ONLY
 # ============================================================================
 def get_recommendations(email, limit=5):
     try:
@@ -446,11 +324,8 @@ def get_recommendations(email, limit=5):
 
 def get_total_reviews_count():
     try:
-        if USE_DYNAMODB:
-            response = dynamodb.Table(REVIEWS_TABLE).scan()
-            return len(response['Items'])
-        else:
-            return len(load_json_file(REVIEWS_FILE, []))
+        response = REVIEWS_TABLE_OBJ.scan()
+        return len(response['Items'])
     except:
         return 0
 
@@ -473,7 +348,7 @@ def get_most_reviewed_movies(limit=5):
         return []
 
 # ============================================================================
-# ALL ROUTES (14 templates fully supported)
+# ALL ROUTES (14 templates fully supported - IDENTICAL)
 # ============================================================================
 @app.route('/')
 def index():
@@ -605,12 +480,12 @@ def my_reviews():
     user_feedback = get_user_reviews(email)
     recommendations = get_recommendations(email, limit=4)
     return render_template('my_reviews.html', 
-                         user_name=session.get('user_name', ''),
-                         user_email=email,
-                         user_feedback=user_feedback,
-                         recommendations=recommendations,
-                         total_reviews=len(user_feedback),
-                         avg_user_rating=user.get('avg_rating', 0.0) if user else 0.0)
+                           user_name=session.get('user_name', ''),
+                           user_email=email,
+                           user_feedback=user_feedback,
+                           recommendations=recommendations,
+                           total_reviews=len(user_feedback),
+                           avg_user_rating=user.get('avg_rating', 0.0) if user else 0.0)
 
 @app.route('/analytics')
 def analytics():
@@ -622,15 +497,15 @@ def analytics():
     recommendations = get_recommendations(email, limit=4)
     all_movies = get_all_movies()
     return render_template('analytics.html',
-                         user_email=email,
-                         user_total_reviews=len(user_reviews),
-                         user_avg_rating=0.0,  # Simplified
-                         total_movies=len(all_movies),
-                         total_reviews=get_total_reviews_count(),
-                         genres=get_genre_distribution(),
-                         top_movies=sorted(all_movies, key=lambda x: x.get('avg_rating', 0) * x.get('total_reviews', 0) or 0, reverse=True)[:6],
-                         most_reviewed=get_most_reviewed_movies(5),
-                         recommendations=recommendations)
+                           user_email=email,
+                           user_total_reviews=len(user_reviews),
+                           user_avg_rating=0.0,  # Simplified
+                           total_movies=len(all_movies),
+                           total_reviews=get_total_reviews_count(),
+                           genres=get_genre_distribution(),
+                           top_movies=sorted(all_movies, key=lambda x: x.get('avg_rating', 0) * x.get('total_reviews', 0) or 0, reverse=True)[:6],
+                           most_reviewed=get_most_reviewed_movies(5),
+                           recommendations=recommendations)
 
 @app.route('/search')
 def search():
@@ -695,7 +570,7 @@ def inject_user():
         'logged_in': 'user_email' in session,
         'user_email': session.get('user_email', ''),
         'user_name': session.get('user_name', ''),
-        'storage_mode': 'AWS' if USE_DYNAMODB else 'Local'
+        'storage_mode': 'DynamoDB'
     }
 
 @app.context_processor
@@ -710,8 +585,8 @@ def inject_genres():
 def health_check():
     return jsonify({
         'status': 'healthy',
-        'storage': 'dynamodb_sns' if USE_DYNAMODB else 'local_json',
-        'aws_connected': USE_DYNAMODB,
+        'storage': 'dynamodb_sns',
+        'aws_connected': True,
         'timestamp': datetime.now().isoformat()
     })
 
