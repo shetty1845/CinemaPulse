@@ -1,0 +1,12 @@
+[
+  {
+    "email": "shivaramakrishnabomma@gmail.com",
+    "name": "Shiva",
+    "password_hash": "scrypt:32768:8:1$ERAXcZ8u3HB1bnNN$81366c2e4cc3bb90e64d48df6f6af602129dc41a0e5f4718ac31b5e3305ab0070ab3af9a46af76d35e8c5d34e6549b684d8d2d0efced6423083f798b3fbbfbac",
+    "created_at": "2026-01-10T12:49:42.288183",
+    "total_reviews": 1,
+    "avg_rating": 4.0,
+    "last_review_date": "2026-01-10T12:50:08.183941",
+    "is_active": true
+  }
+]
