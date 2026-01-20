@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CinemaPulse - Real-Time Movie Feedback Platform{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    
+
     <!-- Inline Dark Theme CSS for Auth Modals -->
     <style>
         :root {
@@ -42,8 +43,15 @@
         }
 
         @keyframes modalSlideIn {
-            from { opacity: 0; transform: scale(0.9) translateY(-20px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
 
         .auth-modal-content {
@@ -60,8 +68,15 @@
         }
 
         @keyframes contentSlideIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .auth-modal-header {
@@ -265,7 +280,7 @@
                 margin: 1rem;
                 padding: 2rem 1.5rem;
             }
-            
+
             .auth-modal-title {
                 font-size: 1.6rem;
             }
@@ -283,12 +298,15 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Animated Background -->
     <div class="animated-bg">
@@ -313,11 +331,13 @@
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="auth-form-group">
                     <i class="fas fa-envelope auth-input-icon"></i>
-                    <input type="email" name="email" id="loginEmail" class="auth-form-input" placeholder="Enter your email" required>
+                    <input type="email" name="email" id="loginEmail" class="auth-form-input"
+                        placeholder="Enter your email" required>
                 </div>
                 <div class="auth-form-group">
                     <i class="fas fa-lock auth-input-icon"></i>
-                    <input type="password" name="password" id="loginPassword" class="auth-form-input" placeholder="Enter your password" required>
+                    <input type="password" name="password" id="loginPassword" class="auth-form-input"
+                        placeholder="Enter your password" required>
                 </div>
                 <button type="submit" class="auth-submit-btn" id="loginSubmit">
                     <span id="loginBtnText">Sign In</span>
@@ -325,7 +345,7 @@
                 </button>
             </form>
             <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">
-                Don't have an account? 
+                Don't have an account?
                 <a href="#" class="auth-switch-link" onclick="switchToRegister()">Create one here</a>
             </p>
         </div>
@@ -347,15 +367,18 @@
             <form id="registerForm" onsubmit="handleRegister(event)">
                 <div class="auth-form-group">
                     <i class="fas fa-user auth-input-icon"></i>
-                    <input type="text" name="name" id="registerName" class="auth-form-input" placeholder="Full Name" required>
+                    <input type="text" name="name" id="registerName" class="auth-form-input" placeholder="Full Name"
+                        required>
                 </div>
                 <div class="auth-form-group">
                     <i class="fas fa-envelope auth-input-icon"></i>
-                    <input type="email" name="email" id="registerEmail" class="auth-form-input" placeholder="Email Address" required>
+                    <input type="email" name="email" id="registerEmail" class="auth-form-input"
+                        placeholder="Email Address" required>
                 </div>
                 <div class="auth-form-group">
                     <i class="fas fa-lock auth-input-icon"></i>
-                    <input type="password" name="password" id="registerPassword" class="auth-form-input" placeholder="Password (min 6 chars)" required>
+                    <input type="password" name="password" id="registerPassword" class="auth-form-input"
+                        placeholder="Password (min 6 chars)" required>
                 </div>
                 <button type="submit" class="auth-submit-btn" id="registerSubmit">
                     <span id="registerBtnText">Create Account</span>
@@ -363,7 +386,7 @@
                 </button>
             </form>
             <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">
-                Already have an account? 
+                Already have an account?
                 <a href="#" class="auth-switch-link" onclick="switchToLogin()">Sign in here</a>
             </p>
         </div>
@@ -376,31 +399,19 @@
                 <i class="fas fa-film brand-icon"></i>
                 <span class="brand-text">Cinema<span class="highlight">Pulse</span></span>
             </div>
-            
+
             <!-- Desktop Navigation -->
             <ul class="nav-links">
                 <li><a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
-                    <i class="fas fa-home"></i> Home
-                </a></li>
+                        <i class="fas fa-home"></i> Home
+                    </a></li>
                 <li><a href="/movies" class="nav-link {% if request.endpoint == 'movies' %}active{% endif %}">
-                    <i class="fas fa-film"></i> Movies
-                </a></li>
+                        <i class="fas fa-film"></i> Movies
+                    </a></li>
                 <li><a href="/analytics" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i> Analytics
-                </a></li>
-                {% if session.get('user_email') %}
-                <li><a href="/my-reviews" class="nav-link {% if request.endpoint == 'my_reviews' %}active{% endif %}">
-                    <i class="fas fa-user-circle"></i> My Reviews
-                </a></li>
-                <li class="nav-user-info">
-                    <span class="user-greeting">
-                        <i class="fas fa-user"></i> {{ session.get('user_name', 'User') }}
-                    </span>
-                    <a href="/logout" class="auth-btn" style="margin-left: 1rem;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </li>
-                {% else %}
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </a></li>
+                {% endif %}
                 <li class="auth-buttons">
                     <button class="auth-btn primary" onclick="openLoginModal()">
                         <i class="fas fa-sign-in-alt"></i> Login
@@ -411,7 +422,7 @@
                 </li>
                 {% endif %}
             </ul>
-            
+
             <button class="mobile-menu-toggle" id="mobileMenuToggle">
                 <i class="fas fa-bars"></i>
             </button>
@@ -448,19 +459,20 @@
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-container">
-                {% for category, message in messages %}
-                <div class="flash-message flash-{{ category }} slide-in">
-                    <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'info' %}info-circle{% else %}exclamation-triangle{% endif %}"></i>
-                    <span>{{ message }}</span>
-                    <button class="flash-close" onclick="this.parentElement.remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <div class="flash-container">
+        {% for category, message in messages %}
+        <div class="flash-message flash-{{ category }} slide-in">
+            <i
+                class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'info' %}info-circle{% else %}exclamation-triangle{% endif %}"></i>
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
 
     <!-- Main Content -->
@@ -490,7 +502,8 @@
                         {% if session.get('user_email') %}
                         <li><a href="/my-reviews"><i class="fas fa-user-circle"></i> My Reviews</a></li>
                         {% else %}
-                        <li><a href="#" onclick="openLoginModal()"><i class="fas fa-sign-in-alt"></i> Login/Register</a></li>
+                        <li><a href="#" onclick="openLoginModal()"><i class="fas fa-sign-in-alt"></i> Login/Register</a>
+                        </li>
                         {% endif %}
                     </ul>
                 </div>
@@ -505,13 +518,14 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; {{ now.year }} CinemaPulse. Crafted with <i class="fas fa-heart pulse"></i> for movie lovers</p>
+                <p>&copy; {{ now.year }} CinemaPulse. Crafted with <i class="fas fa-heart pulse"></i> for movie lovers
+                </p>
             </div>
         </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    
+
     <script>
         // Auth Modal Functions
         function openLoginModal() {
@@ -572,7 +586,7 @@
             const btnText = document.getElementById(formId === 'loginForm' ? 'loginBtnText' : 'registerBtnText');
             const spinner = document.getElementById(formId === 'loginForm' ? 'loginSpinner' : 'registerSpinner');
             const submitBtn = document.getElementById(formId === 'loginForm' ? 'loginSubmit' : 'registerSubmit');
-            
+
             if (isLoading) {
                 btnText.style.display = 'none';
                 spinner.style.display = 'inline-block';
@@ -588,16 +602,16 @@
             event.preventDefault();
             clearLoginErrors();
             setLoading('loginForm', true);
-            
+
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData);
-            
+
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (response.redirected) {
                     window.location.href = response.url;
                 } else {
@@ -617,10 +631,10 @@
             event.preventDefault();
             clearRegisterErrors();
             setLoading('registerForm', true);
-            
+
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData);
-            
+
             // Client-side validation
             if (data.password.length < 6) {
                 showError('registerError', 'Password must be at least 6 characters');
@@ -628,13 +642,13 @@
                 setLoading('registerForm', false);
                 return;
             }
-            
+
             try {
                 const response = await fetch('/register', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (response.redirected) {
                     window.location.href = response.url;
                 } else {
@@ -651,7 +665,7 @@
         }
 
         // Close modals on outside click
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (e.target.classList.contains('auth-modal')) {
                 closeLoginModal();
                 closeRegisterModal();
@@ -659,7 +673,7 @@
         });
 
         // ESC key to close modals
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeLoginModal();
                 closeRegisterModal();
@@ -667,19 +681,20 @@
         });
 
         // Auto-hide flash messages
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const flashMessages = document.querySelectorAll('.flash-message');
-            flashMessages.forEach(function(message) {
-                setTimeout(function() {
+            flashMessages.forEach(function (message) {
+                setTimeout(function () {
                     message.style.animation = 'slideOut 0.3s ease forwards';
-                    setTimeout(function() {
+                    setTimeout(function () {
                         message.remove();
                     }, 300);
                 }, 5000);
             });
         });
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
