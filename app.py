@@ -73,7 +73,7 @@ def send_sns_notification(subject, message):
         print(f"✅ Notification sent: {subject}")
     except Exception as e:
         print(f"⚠️ Failed to send notification: {e}")
-reviews_table = dynamodb.Table('CinemaPulse_Reviews')
+
 
 # ============================================================================
 # HELPER FUNCTIONS - VALIDATION
@@ -733,44 +733,7 @@ def submit_feedback_route():
         flash('An error occurred. Please try again.', 'danger')
         return redirect(url_for('movies'))
 
-# ============================================================================
-# MY REVIEWS ROUTE
-# ============================================================================
-@app.route('/my-reviews')
-def my_reviews():
-    if not is_logged_in():
-        flash("Please login to view your reviews", "danger")
-        return redirect(url_for('login'))
-        
-    email = session.get('user_email')
-    user_feedback = get_user_feedback(email)
-    
-    # Convert Decimals to native types for template compatibility
-    for review in user_feedback:
-        if 'rating' in review and isinstance(review['rating'], Decimal):
-            review['rating'] = int(review['rating'])
-            
-    # Calculate stats
-    total_reviews = len(user_feedback)
-    avg_user_rating = 0
-    if total_reviews > 0:
-        total_rating = sum(r['rating'] for r in user_feedback)
-        avg_user_rating = total_rating / total_reviews
-        
-    recommendations = get_recommendations_for_user(email)
-    # Convert recommendation decimals too
-    for rec in recommendations:
-        if 'avg_rating' in rec and isinstance(rec['avg_rating'], Decimal):
-            rec['avg_rating'] = float(rec['avg_rating'])
-            
-    return render_template('my_reviews.html', 
-                          user_feedback=user_feedback,
-                          total_reviews=total_reviews,
-                          avg_user_rating=avg_user_rating,
-                          recommendations=recommendations,
-                          user_name=session.get('user_name'),
-                          user_email=email,
-                          is_logged_in=True)
+
 
 # ============================================================================
 # ANALYTICS ROUTE
