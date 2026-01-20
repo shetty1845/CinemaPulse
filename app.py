@@ -3,12 +3,17 @@ import boto3
 from boto3.dynamodb.conditions import Key, Attr
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from bcrypt import hashpw, gensalt, checkpw
 import os
 import re
+import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.getenv("SECRET_KEY", "my_super_secret_fallback")
 
 # Add context processor for datetime
 @app.context_processor
@@ -24,130 +29,17 @@ print("="*80 + "\n")
 # ============================================================================
 # AWS DYNAMODB CONFIGURATION
 # ============================================================================
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')  # Update to your AWS region
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name=os.getenv('AWS_REGION', 'us-east-1'),
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+)
 
 # DynamoDB Tables
 users_table = dynamodb.Table('CinemaPulse_Users')
 movies_table = dynamodb.Table('CinemaPulse_Movies')
 reviews_table = dynamodb.Table('CinemaPulse_Reviews')
-
-# ============================================================================
-# INITIAL MOVIES DATA - TO BE LOADED INTO DYNAMODB
-# ============================================================================
-MOVIES_INITIAL_DATA = [
-    {
-        'movie_id': 'movie_001',
-        'title': 'The Quantum Paradox',
-        'description': 'A mind-bending sci-fi thriller exploring parallel universes and quantum mechanics.',
-        'genre': 'Sci-Fi',
-        'release_year': 2024,
-        'director': 'Sarah Mitchell',
-        'image_url': 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_002',
-        'title': 'Echoes of Tomorrow',
-        'description': 'A heartwarming drama about family, time travel, and second chances.',
-        'genre': 'Drama',
-        'release_year': 2025,
-        'director': 'James Chen',
-        'image_url': 'https://image.tmdb.org/t/p/w500/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_003',
-        'title': 'Shadow Protocol',
-        'description': 'An action-packed espionage thriller with explosive sequences and plot twists.',
-        'genre': 'Action',
-        'release_year': 2025,
-        'director': 'Marcus Rodriguez',
-        'image_url': 'https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_004',
-        'title': 'The Last Symphony',
-        'description': "A biographical drama about a legendary composer's final masterpiece.",
-        'genre': 'Drama',
-        'release_year': 2024,
-        'director': 'Elena Volkov',
-        'image_url': 'https://image.tmdb.org/t/p/w500/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_005',
-        'title': 'Neon City',
-        'description': 'A cyberpunk adventure set in a dystopian future with stunning visuals.',
-        'genre': 'Sci-Fi',
-        'release_year': 2026,
-        'director': 'Kenji Tanaka',
-        'image_url': 'https://image.tmdb.org/t/p/w500/pwGmXVKUgKN13psUjlhC9zBcq1o.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_006',
-        'title': 'Desert Storm',
-        'description': 'A survival thriller about a group stranded in the Sahara Desert.',
-        'genre': 'Thriller',
-        'release_year': 2025,
-        'director': 'Ahmed Hassan',
-        'image_url': 'https://image.tmdb.org/t/p/w500/9BBTo63ANSmhC4e6r62OJFuK2GL.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_007',
-        'title': 'Midnight Racing',
-        'description': 'Underground street racing meets high-stakes heist in this adrenaline rush.',
-        'genre': 'Action',
-        'release_year': 2025,
-        'director': 'Lucas Knight',
-        'image_url': 'https://image.tmdb.org/t/p/w500/sv1xJUazXeYqALyczSZ3O6nkH75.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    },
-    {
-        'movie_id': 'movie_008',
-        'title': 'The Forgotten Island',
-        'description': 'Archaeologists discover a mysterious civilization on a remote island.',
-        'genre': 'Adventure',
-        'release_year': 2024,
-        'director': 'Isabella Santos',
-        'image_url': 'https://image.tmdb.org/t/p/w500/yDHYTfA3R0jFYba16jBB1ef8oIt.jpg',
-        'total_reviews': 0,
-        'avg_rating': 0.0,
-        'active': True,
-        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-]
 
 # ============================================================================
 # HELPER FUNCTIONS - VALIDATION
@@ -165,14 +57,24 @@ def is_logged_in():
 # INITIALIZATION FUNCTION
 # ============================================================================
 def initialize_movies():
-    """Initialize movies table with initial data if empty"""
+    """Initialize movies table with initial data from JSON if empty"""
     try:
         response = movies_table.scan(Limit=1)
         if not response.get('Items'):
             print("📽️  Initializing movies database...")
-            for movie in MOVIES_INITIAL_DATA:
+            
+            data_file_path = os.path.join(os.path.dirname(__file__), 'data', 'movies.json')
+            
+            with open(data_file_path, 'r') as f:
+                movies_data = json.load(f)
+                
+            for movie in movies_data:
+                # Ensure float for avg_rating if needed, though json handles it
+                if 'avg_rating' in movie:
+                    movie['avg_rating'] = Decimal(str(movie['avg_rating']))
+                    
                 movies_table.put_item(Item=movie)
-            print(f"✅ {len(MOVIES_INITIAL_DATA)} movies added to database!")
+            print(f"✅ {len(movies_data)} movies added to database!")
     except Exception as e:
         print(f"⚠️  Error initializing movies: {e}")
 
