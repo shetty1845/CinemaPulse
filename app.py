@@ -17,10 +17,17 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "my_super_secret_fallback")
 
-# Add context processor for datetime
 @app.context_processor
 def inject_now():
     return {'now': datetime.now()}
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
+
+app.json_encoder = DecimalEncoder
 
 print("\n" + "="*80)
 print("🎬 CinemaPulse - Real-Time Movie Feedback & Analytics Platform (AWS)")
@@ -472,12 +479,28 @@ def get_most_reviewed_movies(limit=5):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        name = request.form.get('name', '').strip()
+        # Handle JSON request (AJAX) or Form request
+        if request.is_json:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+            password = data.get('password', '')
+            name = data.get('name', '').strip()
+        else:
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            name = request.form.get('name', '').strip()
         
         success, message = register_user(email, password, name)
         
+        # Return JSON for AJAX requests
+        if request.is_json:
+            if success:
+                flash('Registration successful! Please login.', 'success')
+                return jsonify({'success': True, 'redirect': url_for('login')})
+            else:
+                return jsonify({'success': False, 'error': message})
+        
+        # Standard Form Handling
         if success:
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('login'))
@@ -489,8 +512,14 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
+        # Handle JSON request (AJAX) or Form request
+        if request.is_json:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+            password = data.get('password', '')
+        else:
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
         
         success, result = login_user(email, password)
         
@@ -498,9 +527,19 @@ def login():
             user = result
             session['user_email'] = email
             session['user_name'] = user.get('name', email.split('@')[0])
+            
+            # Return JSON for AJAX requests
+            if request.is_json:
+                flash('Login successful! Welcome back!', 'success')
+                return jsonify({'success': True, 'redirect': url_for('movies')})
+            
             flash('Login successful! Welcome back!', 'success')
             return redirect(url_for('movies'))
         else:
+            # Return JSON for AJAX requests
+            if request.is_json:
+                return jsonify({'success': False, 'error': result})
+                
             flash(result, 'danger')
     
     return render_template('login.html', is_logged_in=is_logged_in())
