@@ -648,6 +648,42 @@ def feedback_page(movie_id):
     
     return render_template('feedback.html', movie=movie, is_logged_in=is_logged_in())
 
+@app.route('/my-reviews')
+def my_reviews():
+    if not is_logged_in():
+        flash("Please login to view your reviews", "danger")
+        return redirect(url_for('login'))
+        
+    email = session.get('user_email')
+    user_feedback = get_user_reviews(email)
+    
+    # Convert Decimals to native types for template compatibility
+    for review in user_feedback:
+        if 'rating' in review and isinstance(review['rating'], Decimal):
+            review['rating'] = int(review['rating'])
+            
+    # Calculate stats
+    total_reviews = len(user_feedback)
+    avg_user_rating = 0
+    if total_reviews > 0:
+        total_rating = sum(r['rating'] for r in user_feedback)
+        avg_user_rating = total_rating / total_reviews
+        
+    recommendations = get_recommendations(email, limit=4)
+    # Convert recommendation decimals too
+    for rec in recommendations:
+        if 'avg_rating' in rec and isinstance(rec['avg_rating'], Decimal):
+            rec['avg_rating'] = float(rec['avg_rating'])
+            
+    return render_template('my_reviews.html', 
+                          user_feedback=user_feedback,
+                          total_reviews=total_reviews,
+                          avg_user_rating=avg_user_rating,
+                          recommendations=recommendations,
+                          user_name=session.get('user_name'),
+                          user_email=email,
+                          is_logged_in=True)
+
 @app.route('/submit-feedback', methods=['POST'])
 def submit_feedback_route():
     try:

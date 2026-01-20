@@ -411,7 +411,19 @@
                 <li><a href="/analytics" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                         <i class="fas fa-chart-line"></i> Analytics
                     </a></li>
-                {% endif %}
+                {% if session.get('user_email') %}
+                <li><a href="/my-reviews" class="nav-link {% if request.endpoint == 'my_reviews' %}active{% endif %}">
+                        <i class="fas fa-user-circle"></i> My Reviews
+                    </a></li>
+                <li class="nav-user-info">
+                    <span class="user-greeting">
+                        <i class="fas fa-user"></i> {{ session.get('user_name', 'User') }}
+                    </span>
+                    <a href="/logout" class="auth-btn" style="margin-left: 1rem;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </li>
+                {% else %}
                 <li class="auth-buttons">
                     <button class="auth-btn primary" onclick="openLoginModal()">
                         <i class="fas fa-sign-in-alt"></i> Login
