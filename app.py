@@ -50,6 +50,31 @@ users_table = dynamodb.Table('CinemaPulse_Users')
 movies_table = dynamodb.Table('CinemaPulse_Movies')
 reviews_table = dynamodb.Table('CinemaPulse_Reviews')
 
+# SNS Client
+sns_client = boto3.client(
+    'sns',
+    region_name=os.getenv('AWS_REGION', 'us-east-1'),
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+)
+SNS_TOPIC_ARN = os.getenv('AWS_SNS_TOPIC_ARN')
+
+def send_sns_notification(subject, message):
+    """Send SNS notification if topic ARN is configured"""
+    if not SNS_TOPIC_ARN:
+        return
+        
+    try:
+        sns_client.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Message=message,
+            Subject=f"CinemaPulse: {subject}"
+        )
+        print(f"✅ Notification sent: {subject}")
+    except Exception as e:
+        print(f"⚠️ Failed to send notification: {e}")
+reviews_table = dynamodb.Table('CinemaPulse_Reviews')
+
 # ============================================================================
 # HELPER FUNCTIONS - VALIDATION
 # ============================================================================
@@ -129,6 +154,13 @@ def register_user(email, password, name):
         )
         
         print(f"✅ New user registered: {email}")
+        
+        # Send Notification
+        send_sns_notification(
+            "New User Registered",
+            f"A new user has joined CinemaPulse!\n\nName: {name}\nEmail: {email}\nTime: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        
         return True, "Registration successful"
         
     except Exception as e:
@@ -265,7 +297,14 @@ def submit_review(name, email, movie_id, rating, feedback_text):
         update_movie_stats(movie_id)
         update_user_stats(email)
         
-        print(f"✅ Review submitted: {review_id}")
+        print(f"✅ Review submitted for {movie_id} by {email}")
+        
+        # Send Notification
+        send_sns_notification(
+            "New Review Submitted",
+            f"A new review has been posted!\n\nUser: {name} ({email})\nMovie ID: {movie_id}\nRating: {rating}/5\n\nReview: {feedback_text}"
+        )
+        
         return True
     except Exception as e:
         print(f"❌ Error submitting review: {e}")
