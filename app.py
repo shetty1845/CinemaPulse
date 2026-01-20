@@ -115,7 +115,7 @@ def register_user(email, password, name):
                 'password': hashed_password,
                 'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 'total_reviews': 0,
-                'avg_rating': 0.0,
+                'avg_rating': Decimal('0.0'),
                 'last_review_date': '',
                 'is_active': True
             }
@@ -223,7 +223,7 @@ def update_movie_stats(movie_id):
             UpdateExpression="SET total_reviews = :total, avg_rating = :avg, last_updated = :updated",
             ExpressionAttributeValues={
                 ':total': total_reviews,
-                ':avg': round(avg_rating, 2),
+                ':avg': Decimal(str(round(avg_rating, 2))),
                 ':updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
         )
@@ -355,7 +355,7 @@ def update_user_stats(email):
             UpdateExpression="SET total_reviews = :total, avg_rating = :avg, last_review_date = :last",
             ExpressionAttributeValues={
                 ':total': total_reviews,
-                ':avg': round(avg_rating, 2),
+                ':avg': Decimal(str(round(avg_rating, 2))),
                 ':last': last_review
             }
         )
