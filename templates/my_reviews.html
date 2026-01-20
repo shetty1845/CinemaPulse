@@ -62,7 +62,8 @@
                 </div>
                 <div class="overview-content">
                     <div class="overview-value">
-                        {% if avg_user_rating >= 4 %}Expert{% elif avg_user_rating >= 3 %}Enthusiast{% else %}Explorer{% endif %}
+                        {% if avg_user_rating >= 4 %}Expert{% elif avg_user_rating >= 3 %}Enthusiast{% else %}Explorer{%
+                        endif %}
                     </div>
                     <div class="overview-label">Status</div>
                 </div>
@@ -98,22 +99,23 @@
                             </span>
                         </div>
                         <div class="my-review-rating">
-                            {% for i in range(review.rating) %}
-                                <i class="fas fa-star"></i>
+                            {% for i in range(review.rating|int) %}
+                            <i class="fas fa-star"></i>
                             {% endfor %}
                             {% for i in range(5 - review.rating) %}
-                                <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
                             {% endfor %}
                             <span class="rating-number">{{ review.rating }}/5</span>
                         </div>
                     </div>
-                    
+
                     {% if review.feedback %}
                     <p class="my-review-text">{{ review.feedback }}</p>
                     {% else %}
-                    <p class="my-review-text" style="font-style: italic; color: var(--text-muted);">No written review</p>
+                    <p class="my-review-text" style="font-style: italic; color: var(--text-muted);">No written review
+                    </p>
                     {% endif %}
-                    
+
                     <div class="my-review-meta">
                         <span><i class="fas fa-clock"></i> {{ review.created_at }}</span>
                     </div>
@@ -174,7 +176,8 @@
                         </div>
                     </div>
                     <div class="rating-progress">
-                        <div class="rating-progress-fill" style="width: {{ (movie.avg_rating / 5 * 100)|round|int }}%"></div>
+                        <div class="rating-progress-fill" style="width: {{ (movie.avg_rating / 5 * 100)|round|int }}%">
+                        </div>
                     </div>
                     <a href="/feedback/{{ movie.movie_id }}" class="btn btn-sm btn-primary">
                         <i class="fas fa-star"></i> Rate This Movie

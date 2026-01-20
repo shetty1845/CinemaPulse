@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}About Us - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title gradient-text">
+            <i class="fas fa-info-circle"></i> About CinemaPulse
+        </h1>
+        <p class="page-subtitle">Revolutionizing how you discover and rate movies</p>
+    </div>
+
+    <div class="section-container fade-in">
+        <div class="glass-effect" style="padding: 2rem; border-radius: 1.5rem;">
+            <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <h2 class="gradient-text" style="font-size: 2rem; margin-bottom: 1rem;">Our Mission</h2>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+                        CinemaPulse is dedicated to providing movie enthusiasts with a real-time, interactive platform
+                        to share their opinions and discover new favorites. We believe that every voice matters in the
+                        world of cinema.
+                    </p>
+                    <p style="color: var(--text-secondary); line-height: 1.6;">
+                        Our advanced analytics engine processes thousands of data points to deliver personalized
+                        recommendations and insightful trends, helping you make the best choice for your next movie
+                        night.
+                    </p>
+                </div>
+                <div
+                    style="flex: 1; display: flex; box-shadow: 0 0 100px rgba(0, 212, 255, 0.1); border-radius: 1rem; overflow: hidden;">
+                    <div
+                        style="background: linear-gradient(135deg, #0f0f0f, #1a1a1a); padding: 2rem; width: 100%; text-align: center;">
+                        <i class="fas fa-film" style="font-size: 5rem; color: #00d4ff; margin-bottom: 1rem;"></i>
+                        <h3 style="color: white;">CinemaPulse</h3>
+                        <p style="color: #b0b0b0;">Est. {{ now.year }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-container fade-in">
+        <div class="features-grid">
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Community First</h3>
+                <p>Built by movie lovers, for movie lovers. Join a growing community of passionate critics.</p>
+            </div>
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>Data Driven</h3>
+                <p>We use real-time data to show you exactly what's trending and what's worth watching.</p>
+            </div>
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Honest Reviews</h3>
+                <p>We prioritize authentic, user-generated content to ensure you get the real picture.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
