@@ -567,6 +567,11 @@ def movies():
     
     all_movies.sort(key=lambda x: x.get('avg_rating', 0), reverse=True)
     
+    # Convert Decimals for template safety
+    for m in all_movies:
+        if 'avg_rating' in m and isinstance(m['avg_rating'], Decimal):
+            m['avg_rating'] = float(m['avg_rating'])
+    
     return render_template('movies.html', movies=all_movies, current_genre=genre_filter, is_logged_in=is_logged_in())
 
 @app.route('/movie/<movie_id>')
@@ -577,9 +582,18 @@ def movie_detail(movie_id):
         flash("Movie not found!", "danger")
         return redirect(url_for('movies'))
     
-    reviews = get_movie_reviews(movie_id)
+    feedback_list = get_movie_reviews(movie_id)
     
-    return render_template('movie_detail.html', movie=movie, feedback_list=reviews, is_logged_in=is_logged_in())
+    # Convert Decimals in feedback list
+    for f in feedback_list:
+        if 'rating' in f and isinstance(f['rating'], Decimal):
+            f['rating'] = int(f['rating'])
+            
+    # Convert movie avg_rating
+    if movie and 'avg_rating' in movie and isinstance(movie['avg_rating'], Decimal):
+        movie['avg_rating'] = float(movie['avg_rating'])
+    
+    return render_template('movie_detail.html', movie=movie, feedback_list=feedback_list, is_logged_in=is_logged_in())
 
 @app.route('/feedback/<movie_id>')
 def feedback_page(movie_id):
@@ -650,26 +664,38 @@ def submit_feedback_route():
 @app.route('/my-reviews')
 def my_reviews():
     if not is_logged_in():
-        flash('Please login to view your reviews!', 'info')
+        flash("Please login to view your reviews", "danger")
         return redirect(url_for('login'))
-    
+        
     email = session.get('user_email')
-    user = get_user(email)
-    user_feedback = get_user_reviews(email)
-    recommendations = get_recommendations(email, limit=4)
+    user_feedback = get_user_feedback(email)
     
-    # Calculate stats for template
+    # Convert Decimals to native types for template compatibility
+    for review in user_feedback:
+        if 'rating' in review and isinstance(review['rating'], Decimal):
+            review['rating'] = int(review['rating'])
+            
+    # Calculate stats
     total_reviews = len(user_feedback)
-    avg_user_rating = user.get('avg_rating', 0.0) if user else 0.0
-    
+    avg_user_rating = 0
+    if total_reviews > 0:
+        total_rating = sum(r['rating'] for r in user_feedback)
+        avg_user_rating = total_rating / total_reviews
+        
+    recommendations = get_recommendations_for_user(email)
+    # Convert recommendation decimals too
+    for rec in recommendations:
+        if 'avg_rating' in rec and isinstance(rec['avg_rating'], Decimal):
+            rec['avg_rating'] = float(rec['avg_rating'])
+            
     return render_template('my_reviews.html', 
-                         user_name=session.get('user_name', ''),
-                         user_email=email,
-                         user_feedback=user_feedback,
-                         recommendations=recommendations,
-                         total_reviews=total_reviews,
-                         avg_user_rating=avg_user_rating,
-                         is_logged_in=is_logged_in())
+                          user_feedback=user_feedback,
+                          total_reviews=total_reviews,
+                          avg_user_rating=avg_user_rating,
+                          recommendations=recommendations,
+                          user_name=session.get('user_name'),
+                          user_email=email,
+                          is_logged_in=True)
 
 # ============================================================================
 # ANALYTICS ROUTE
